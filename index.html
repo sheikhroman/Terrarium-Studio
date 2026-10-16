@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verdant Glass — Interactive Terrarium Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        botanical: {
+                            50: '#f5f7f4',
+                            100: '#e6ece3',
+                            200: '#cddbc8',
+                            300: '#abc2a4',
+                            400: '#82a279',
+                            500: '#628559',
+                            600: '#4c6a45',
+                            700: '#3e5538',
+                            800: '#344530',
+                            900: '#2b3928',
+                        },
+                        parchment: {
+                            50: '#fdfcf9',
+                            100: '#f7f4ec',
+                            200: '#eee7d7',
+                            300: '#dfd3ba',
+                        },
+                        terracotta: {
+                            400: '#e07a5f',
+                            500: '#d06044',
+                            600: '#b84a2f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow: hidden;
+        }
+        h1, h2, .serif-title {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(238, 231, 215, 0.4);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(98, 133, 89, 0.35);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(98, 133, 89, 0.6);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 999px;
+            background: #dfd3ba;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #4c6a45;
+            border: 2px solid #fdfcf9;
+            margin-top: -6px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #3e5538;
+        }
+
+        /* Placed Item Animations & Handles */
+        .placed-item {
+            transform-origin: center center;
+            cursor: grab;
+            touch-action: none;
+            transition: filter 0.2s ease;
+        }
+        .placed-item:active {
+            cursor: grabbing;
+        }
+        .placed-item.selected {
+            filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.75));
+        }
+
+        /* Water Droplet Animation */
+        @keyframes drip {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            15% { opacity: 0.85; transform: translateY(2px) scale(1); }
+            85% { opacity: 0.75; }
+            100% { transform: translateY(38px) scale(0.9); opacity: 0; }
+        }
+        .mist-droplet {
+            animation: drip 4.5s ease-in forwards;
+        }
+
+        /* Firefly Pulse */
+        @keyframes fireflyGlow {
+            0%, 100% { opacity: 0.25; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
+        .firefly-dot {
+            animation: fireflyGlow 2.4s ease-in-out infinite;
+        }
+
+        /* Ambient Background Transitions */
+        .studio-bg-day {
+            background: radial-gradient(circle at 50% 35%, #fdfcf9 0%, #eee7d7 65%, #dfd3ba 100%);
+        }
+        .studio-bg-twilight {
+            background: radial-gradient(circle at 50% 35%, #2d324a 0%, #1b1e2e 65%, #11131f 100%);
+        }
+        .studio-bg-night {
+            background: radial-gradient(circle at 50% 35%, #162623 0%, #0d1715 70%, #070c0b 100%);
+        }
+
+        /* Subtle Floating Effect for Hanging Globe */
+        @keyframes gentleSway {
+            0%, 100% { transform: rotate(-0.4deg) translateY(0px); }
+            50% { transform: rotate(0.4deg) translateY(3px); }
+        }
+        .sway-vessel {
+            animation: gentleSway 7s ease-in-out infinite;
+            transform-origin: 50% 0%;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-parchment-100 text-botanical-900 select-none overflow-hidden">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="h-16 px-4 lg:px-6 bg-parchment-50/90 backdrop-blur-md border-b border-parchment-300 flex items-center justify-between z-30 shrink-0 shadow-sm">
+        <!-- Brand -->
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-botanical-700 text-parchment-50 flex items-center justify-center shadow-inner">
+                <i data-lucide="sprout" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-botanical-900 leading-none">Verdant Glass</h1>
+                <p class="text-xs text-botanical-600 font-medium hidden sm:block">Botanical Terrarium Workshop</p>
+            </div>
+        </div>
+
+        <!-- Preset Selector Pills -->
+        <div class="hidden md:flex items-center gap-1.5 bg-parchment-200/80 p-1.5 rounded-xl border border-parchment-300">
+            <span class="text-xs font-semibold uppercase tracking-wider text-botanical-700 px-2.5">Presets:</span>
+            <button onclick="loadPreset('rainforest')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-parchment-50 hover:bg-botanical-600 hover:text-white text-botanical-800 transition-all shadow-sm flex items-center gap-1.5">
+                <span>🌿</span> Lush Rainforest
+            </button>
+            <button onclick="loadPreset('desert')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-parchment-50 hover:bg-terracotta-500 hover:text-white text-botanical-800 transition-all shadow-sm flex items-center gap-1.5">
+                <span>🌵</span> Arid Desert
+            </button>
+            <button onclick="loadPreset('fairy')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-parchment-50 hover:bg-purple-700 hover:text-white text-botanical-800 transition-all shadow-sm flex items-center gap-1.5">
+                <span>🍄</span> Enchanted Fairy
+            </button>
+        </div>
+
+        <!-- Right Action Controls -->
+        <div class="flex items-center gap-2">
+            <!-- Humidity & Ecosystem Badge -->
+            <div class="flex items-center gap-2 bg-botanical-50 border border-botanical-200 px-3 py-1.5 rounded-xl mr-1">
+                <i data-lucide="droplets" class="w-4 h-4 text-sky-600"></i>
+                <div class="text-left">
+                    <div class="text-[10px] uppercase tracking-wider text-botanical-600 font-semibold leading-none">Humidity</div>
+                    <div id="humidityReadout" class="text-xs font-bold text-botanical-900">68% Optimal</div>
+                </div>
+            </div>
+
+            <!-- Spray / Mist Bottle Button -->
+            <button id="mistBtn" onclick="triggerMistSpray()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all" title="Mist Terrarium">
+                <i data-lucide="cloud-rain" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Mist</span>
+            </button>
+
+            <!-- Sound Toggle -->
+            <button id="soundToggleBtn" onclick="toggleAudio()" class="p-2 rounded-xl bg-parchment-200 hover:bg-parchment-300 text-botanical-800 transition-colors" title="Toggle Sound Effects">
+                <i id="soundIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Snapshot Button -->
+            <button onclick="exportSnapshot()" class="p-2 rounded-xl bg-parchment-200 hover:bg-parchment-300 text-botanical-800 transition-colors" title="Capture Terrarium Card">
+                <i data-lucide="camera" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Clear Button -->
+            <button onclick="openClearModal()" class="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-colors" title="Reset Terrarium">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- LEFT / BOTTOM DRAWER: BUILDER CATALOG -->
+        <aside class="w-full lg:w-96 bg-parchment-50 border-t lg:border-t-0 lg:border-r border-parchment-300 flex flex-col z-20 order-2 lg:order-1 h-72 lg:h-auto shrink-0 shadow-lg">
+            
+            <!-- Category Navigation Tabs -->
+            <div class="grid grid-cols-5 gap-1 p-2 bg-parchment-200/70 border-b border-parchment-300 shrink-0">
+                <button onclick="switchTab('vessels')" id="tab-vessels" class="tab-btn active-tab flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-semibold transition-all bg-botanical-700 text-white shadow-sm">
+                    <i data-lucide="flask-round" class="w-4 h-4 mb-1"></i>
+                    <span>Vessels</span>
+                </button>
+                <button onclick="switchTab('substrates')" id="tab-substrates" class="tab-btn flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-semibold text-botanical-800 hover:bg-parchment-100 transition-all">
+                    <i data-lucide="layers" class="w-4 h-4 mb-1"></i>
+                    <span>Layers</span>
+                </button>
+                <button onclick="switchTab('plants')" id="tab-plants" class="tab-btn flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-semibold text-botanical-800 hover:bg-parchment-100 transition-all">
+                    <i data-lucide="leaf" class="w-4 h-4 mb-1"></i>
+                    <span>Flora</span>
+                </button>
+                <button onclick="switchTab('decor')" id="tab-decor" class="tab-btn flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-semibold text-botanical-800 hover:bg-parchment-100 transition-all">
+                    <i data-lucide="gem" class="w-4 h-4 mb-1"></i>
+                    <span>Decor</span>
+                </button>
+                <button onclick="switchTab('ambiance')" id="tab-ambiance" class="tab-btn flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs font-semibold text-botanical-800 hover:bg-parchment-100 transition-all">
+                    <i data-lucide="sparkles" class="w-4 h-4 mb-1"></i>
+                    <span>Mood</span>
+                </button>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                
+                <!-- 1. VESSELS PANEL -->
+                <div id="panel-vessels" class="tab-panel space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-botanical-900">Select Glass Vessel</h2>
+                        <span class="text-xs text-botanical-600">4 Artisanal Shapes</span>
+                    </div>
+                    <p class="text-xs text-botanical-700 leading-relaxed">Choose a container for your miniature ecosystem. Closed jars retain moisture, while globes suit air plants.</p>
+                    
+                    <div id="vesselGrid" class="grid grid-cols-2 gap-3 pt-1">
+                        <!-- Dynamically populated by JS -->
+                    </div>
+
+                    <!-- Cork / Lid Toggle -->
+                    <div class="mt-4 p-3 rounded-xl bg-parchment-100 border border-parchment-300 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-botanical-900">Vessel Stopper / Top</div>
+                            <div class="text-[11px] text-botanical-600">Toggle cork lid or top cap</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="lidToggle" checked onchange="toggleVesselLid(this.checked)" class="sr-only peer">
+                            <div class="w-10 h-5 bg-parchment-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-botanical-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Mobile Presets Bar -->
+                    <div class="md:hidden pt-2 border-t border-parchment-300">
+                        <div class="text-xs font-bold text-botanical-800 mb-2">Quick Presets</div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="loadPreset('rainforest')" class="p-2 rounded-lg text-xs font-semibold bg-botanical-100 text-botanical-900">🌿 Rainforest</button>
+                            <button onclick="loadPreset('desert')" class="p-2 rounded-lg text-xs font-semibold bg-amber-100 text-amber-900">🌵 Desert</button>
+                            <button onclick="loadPreset('fairy')" class="p-2 rounded-lg text-xs font-semibold bg-purple-100 text-purple-900">🍄 Fairy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SUBSTRATES PANEL -->
+                <div id="panel-substrates" class="tab-panel hidden space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-botanical-900">Substrate Foundation</h2>
+                        <button onclick="balanceSubstrates()" class="text-xs font-semibold text-botanical-600 hover:text-botanical-900 underline">Reset Mix</button>
+                    </div>
+                    <p class="text-xs text-botanical-700 leading-relaxed">Adjust layer thickness from bottom to top. A healthy drainage base prevents root rot.</p>
+                    
+                    <div id="substrateControls" class="space-y-3">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- 3. FLORA / BOTANICALS PANEL -->
+                <div id="panel-plants" class="tab-panel hidden space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-botanical-900">Botanical Specimens</h2>
+                        <span class="text-xs text-botanical-600">Click or Drag into Jar</span>
+                    </div>
+                    <div id="plantsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2.5">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- 4. HARDSCAPE & DECOR PANEL -->
+                <div id="panel-decor" class="tab-panel hidden space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-botanical-900">Hardscape & Accents</h2>
+                        <span class="text-xs text-botanical-600">Click or Drag into Jar</span>
+                    </div>
+                    <div id="decorGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2.5">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- 5. AMBIANCE & MOOD PANEL -->
+                <div id="panel-ambiance" class="tab-panel hidden space-y-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-botanical-900 mb-1">Lighting & Time of Day</h2>
+                        <p class="text-xs text-botanical-700 mb-3">Shift the studio atmosphere and activate warm copper fairy lights.</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setLightingMode('day')" id="mode-day" class="lighting-btn p-2.5 rounded-xl border-2 border-botanical-600 bg-botanical-50 text-botanical-900 text-xs font-bold flex flex-col items-center gap-1">
+                                <i data-lucide="sun" class="w-5 h-5 text-amber-500"></i>
+                                <span>Sunlit Day</span>
+                            </button>
+                            <button onclick="setLightingMode('twilight')" id="mode-twilight" class="lighting-btn p-2.5 rounded-xl border border-parchment-300 bg-parchment-100 text-botanical-800 text-xs font-bold flex flex-col items-center gap-1">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-amber-400"></i>
+                                <span>Fairy Glow</span>
+                            </button>
+                            <button onclick="setLightingMode('night')" id="mode-night" class="lighting-btn p-2.5 rounded-xl border border-parchment-300 bg-parchment-100 text-botanical-800 text-xs font-bold flex flex-col items-center gap-1">
+                                <i data-lucide="moon" class="w-5 h-5 text-indigo-400"></i>
+                                <span>Midnight</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-parchment-300 pt-3 space-y-2.5">
+                        <h3 class="text-sm font-bold text-botanical-900">Living Micro-Fauna & Lights</h3>
+                        
+                        <!-- String Lights Toggle -->
+                        <div class="p-3 rounded-xl bg-parchment-100 border border-parchment-300 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-lg">✨</span>
+                                <div>
+                                    <div class="text-xs font-bold text-botanical-900">Copper String Lights</div>
+                                    <div class="text-[11px] text-botanical-600">Warm dewdrop LEDs inside glass</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="toggleFairyLights" onchange="toggleAmbianceFeature('fairyLights', this.checked)" class="w-4 h-4 accent-botanical-600 rounded cursor-pointer">
+                        </div>
+
+                        <!-- Glowing Fireflies Toggle -->
+                        <div class="p-3 rounded-xl bg-parchment-100 border border-parchment-300 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-lg">🪲</span>
+                                <div>
+                                    <div class="text-xs font-bold text-botanical-900">Bioluminescent Fireflies</div>
+                                    <div class="text-[11px] text-botanical-600">Gentle drifting golden orbs</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="toggleFireflies" onchange="toggleAmbianceFeature('fireflies', this.checked)" class="w-4 h-4 accent-botanical-600 rounded cursor-pointer">
+                        </div>
+
+                        <!-- Wandering Ladybug Toggle -->
+                        <div class="p-3 rounded-xl bg-parchment-100 border border-parchment-300 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-lg">🐞</span>
+                                <div>
+                                    <div class="text-xs font-bold text-botanical-900">Wandering Ladybug</div>
+                                    <div class="text-[11px] text-botanical-600">Strolls along the substrate surface</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="toggleLadybug" checked onchange="toggleAmbianceFeature('ladybug', this.checked)" class="w-4 h-4 accent-botanical-600 rounded cursor-pointer">
+                        </div>
+
+                        <!-- Fluttering Butterfly Toggle -->
+                        <div class="p-3 rounded-xl bg-parchment-100 border border-parchment-300 flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-lg">🦋</span>
+                                <div>
+                                    <div class="text-xs font-bold text-botanical-900">Morpho Butterfly</div>
+                                    <div class="text-[11px] text-botanical-600">Flutters near upper foliage</div>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="toggleButterfly" onchange="toggleAmbianceFeature('butterfly', this.checked)" class="w-4 h-4 accent-botanical-600 rounded cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+                        <p class="text-xs text-center text-parchment-400 ">All Rights Reserved By <span class="font-bold">Sheikh Roman</span></p>
+
+            </div>
+        </aside>
+
+        <!-- CENTER STAGE: INTERACTIVE TERRARIUM CANVAS -->
+        <main id="studioStage" class="flex-1 relative flex items-center justify-center studio-bg-day transition-colors duration-700 order-1 lg:order-2 overflow-hidden"
+              ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+            
+            <!-- Ambient Background Stars (Visible in Twilight/Night) -->
+            <div id="nightStarsOverlay" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-700">
+                <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15%" cy="18%" r="1.2" fill="#fef08a" opacity="0.7"/>
+                    <circle cx="82%" cy="12%" r="1.5" fill="#fef08a" opacity="0.5"/>
+                    <circle cx="28%" cy="32%" r="1" fill="#fff" opacity="0.4"/>
+                    <circle cx="74%" cy="28%" r="1.3" fill="#fef08a" opacity="0.6"/>
+                    <circle cx="88%" cy="45%" r="1" fill="#fff" opacity="0.4"/>
+                    <circle cx="10%" cy="55%" r="1.4" fill="#fef08a" opacity="0.5"/>
+                </svg>
+            </div>
+
+            <!-- Wooden Tabletop Surface -->
+            <div class="absolute bottom-0 inset-x-0 h-16 sm:h-20 bg-gradient-to-b from-[#8c6239] via-[#754c29] to-[#59381c] border-t-4 border-[#a67c52] shadow-2xl pointer-events-none">
+                <div class="w-full h-full opacity-20" style="background-image: repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,0,0,0.15) 40px, rgba(0,0,0,0.15) 80px);"></div>
+            </div>
+
+            <!-- Interactive SVG Terrarium Container -->
+            <div id="terrariumWrapper" class="relative w-full h-full max-w-[600px] max-h-[680px] flex items-center justify-center p-2 sm:p-6 z-10">
+                <svg id="terrariumSvg" viewBox="0 0 600 680" class="w-full h-full drop-shadow-2xl overflow-visible" onclick="handleCanvasBackgroundClick(event)">
+                    <defs>
+                        <!-- Dynamic Clip Path for the Selected Vessel Interior -->
+                        <clipPath id="vesselInteriorClip">
+                            <path id="clipVesselPath" d="" />
+                        </clipPath>
+
+                        <!-- Glass Reflection Linear Gradients -->
+                        <linearGradient id="glassBodyGrad" x1="0%" y1="0%" x2="100%" y2="10%">
+                            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32" />
+                            <stop offset="18%" stop-color="#e0f2fe" stop-opacity="0.08" />
+                            <stop offset="50%" stop-color="#ffffff" stop-opacity="0.03" />
+                            <stop offset="85%" stop-color="#bae6fd" stop-opacity="0.10" />
+                            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.36" />
+                        </linearGradient>
+
+                        <linearGradient id="glassSpecularLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
+                            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0" />
+                        </linearGradient>
+
+                        <!-- Cork Texture Pattern -->
+                        <pattern id="corkPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="20" height="20" fill="#b5835a"/>
+                            <circle cx="4" cy="5" r="1.5" fill="#8c5e38" opacity="0.6"/>
+                            <circle cx="14" cy="12" r="2" fill="#9c6b43" opacity="0.7"/>
+                            <circle cx="9" cy="17" r="1.2" fill="#704828" opacity="0.5"/>
+                            <circle cx="16" cy="4" r="1" fill="#d4a373" opacity="0.6"/>
+                        </pattern>
+
+                        <!-- Substrate Patterns -->
+                        <!-- 1. Drainage River Pebbles -->
+                        <pattern id="pebblesPattern" width="36" height="24" patternUnits="userSpaceOnUse">
+                            <rect width="36" height="24" fill="#8d867e"/>
+                            <ellipse cx="9" cy="8" rx="7" ry="4.5" fill="#b5afa8" stroke="#6e685f" stroke-width="0.8"/>
+                            <ellipse cx="24" cy="7" rx="8" ry="5" fill="#9e978f" stroke="#6e685f" stroke-width="0.8"/>
+                            <ellipse cx="16" cy="17" rx="7.5" ry="4.5" fill="#c7c2bc" stroke="#6e685f" stroke-width="0.8"/>
+                            <ellipse cx="31" cy="18" rx="6" ry="4" fill="#7a736b" stroke="#59534c" stroke-width="0.8"/>
+                            <ellipse cx="4" cy="19" rx="5.5" ry="3.8" fill="#a39c93" stroke="#6e685f" stroke-width="0.8"/>
+                        </pattern>
+
+                        <!-- 2. Activated Charcoal -->
+                        <pattern id="charcoalPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="20" height="20" fill="#26282a"/>
+                            <polygon points="2,4 8,2 10,8 4,9" fill="#17181a"/>
+                            <polygon points="12,3 18,5 16,11 11,9" fill="#373a3d"/>
+                            <polygon points="3,13 9,12 11,18 4,19" fill="#323538"/>
+                            <polygon points="13,14 19,13 18,19 12,18" fill="#141516"/>
+                        </pattern>
+
+                        <!-- 3. Rich Potting Soil -->
+                        <pattern id="soilPattern" width="28" height="28" patternUnits="userSpaceOnUse">
+                            <rect width="28" height="28" fill="#4a3222"/>
+                            <circle cx="5" cy="6" r="2" fill="#382315"/>
+                            <circle cx="15" cy="11" r="2.5" fill="#5e412f"/>
+                            <circle cx="23" cy="6" r="1.5" fill="#2e1c10"/>
+                            <circle cx="9" cy="21" r="2.2" fill="#3b2618"/>
+                            <circle cx="21" cy="20" r="1.8" fill="#634532"/>
+                            <path d="M11,4 L14,6" stroke="#7c5841" stroke-width="1" stroke-linecap="round"/>
+                        </pattern>
+
+                        <!-- 4. Golden Desert Sand -->
+                        <pattern id="sandPattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                            <rect width="24" height="24" fill="#dfb982"/>
+                            <circle cx="4" cy="5" r="0.9" fill="#c49a62"/>
+                            <circle cx="14" cy="9" r="1.1" fill="#edd0a3"/>
+                            <circle cx="20" cy="4" r="0.8" fill="#b88c52"/>
+                            <circle cx="8" cy="18" r="1" fill="#c79d65"/>
+                            <circle cx="19" cy="17" r="1.2" fill="#f2dab5"/>
+                        </pattern>
+
+                        <!-- 5. Cushion Sphagnum Moss -->
+                        <pattern id="mossPattern" width="32" height="20" patternUnits="userSpaceOnUse">
+                            <rect width="32" height="20" fill="#4f773b"/>
+                            <circle cx="8" cy="10" r="7" fill="#618c4a"/>
+                            <circle cx="20" cy="8" r="8" fill="#3f632d"/>
+                            <circle cx="27" cy="14" r="6" fill="#729e5a"/>
+                            <circle cx="14" cy="16" r="6" fill="#578241"/>
+                        </pattern>
+
+                        <!-- Glow Filter for Fairy Lights & Fireflies -->
+                        <filter id="warmGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <!-- Soft Ground Shadow Beneath Vessel -->
+                    <ellipse id="vesselFloorShadow" cx="300" cy="625" rx="175" ry="18" fill="rgba(0,0,0,0.28)" />
+
+                    <!-- Hanging Stand (Only visible for Hanging Globe) -->
+                    <g id="hangingStandGroup" class="hidden pointer-events-none">
+                        <path d="M300,0 L300,95" stroke="#5c4028" stroke-width="4" stroke-dasharray="6,3"/>
+                        <circle cx="300" cy="95" r="10" fill="none" stroke="#8c6d46" stroke-width="4"/>
+                    </g>
+
+                    <!-- MAIN VESSEL GROUP -->
+                    <g id="mainVesselContainer">
+                        <!-- Back Glass Tint -->
+                        <path id="vesselBackGlass" d="" fill="url(#glassBodyGrad)" />
+
+                        <!-- CLIPPED INTERIOR ECOSYSTEM -->
+                        <g clip-path="url(#vesselInteriorClip)">
+                            
+                            <!-- Ambient Inner Glow (Twilight/Night) -->
+                            <rect id="innerMoodGlow" x="0" y="0" width="600" height="680" fill="#fbbf24" opacity="0" class="pointer-events-none transition-opacity duration-700"/>
+
+                            <!-- Copper String Fairy Lights (Behind & Around Foliage) -->
+                            <g id="fairyLightsLayer" class="hidden pointer-events-none"></g>
+
+                            <!-- Interactive Placed Botanicals & Decor Layer -->
+                            <g id="placedItemsLayer"></g>
+
+                            <!-- Substrate Layers Stack (Rendered Bottom-Up so roots tuck nicely) -->
+                            <g id="substrateStackLayer" class="pointer-events-none"></g>
+
+                            <!-- Animated Micro-Fauna Layer (Ladybug, Butterfly, Fireflies) -->
+                            <g id="creaturesLayer" class="pointer-events-none"></g>
+
+                            <!-- Misting Water Droplets Layer -->
+                            <g id="mistDropletsLayer" class="pointer-events-none"></g>
+                        </g>
+
+                        <!-- Vessel Cork / Stopper Top -->
+                        <g id="vesselLidGroup" class="pointer-events-none"></g>
+
+                        <!-- Front Glass Specular Reflections & Rim Outlines -->
+                        <g id="vesselFrontHighlights" class="pointer-events-none"></g>
+                    </g>
+
+                    <!-- Selection Bounding Box & Quick Handle Indicator -->
+                    <g id="selectionBoxLayer" class="hidden pointer-events-none">
+                        <rect id="selectionRect" x="0" y="0" width="100" height="100" rx="8" fill="none" stroke="#eab308" stroke-width="2" stroke-dasharray="5,5" />
+                    </g>
+                </svg>
+            </div>
+
+            <!-- FLOATING ITEM INSPECTOR TOOLBAR (Appears when an item is selected) -->
+            <div id="itemInspector" class="hidden absolute top-4 left-1/2 -translate-x-1/2 bg-parchment-50/95 backdrop-blur-md border border-parchment-300 px-3 py-2 rounded-2xl shadow-xl z-30 flex items-center gap-1.5 sm:gap-2 transition-all">
+                <span id="selectedItemLabel" class="text-xs font-bold text-botanical-900 px-2 border-r border-parchment-300 hidden sm:inline">Boston Fern</span>
+                
+                <button onclick="transformSelectedItem('scaleUp')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Enlarge (+)">
+                    <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('scaleDown')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Shrink (-)">
+                    <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('rotateLeft')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Rotate Counter-Clockwise">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('rotateRight')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Rotate Clockwise">
+                    <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('flip')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Flip Horizontally">
+                    <i data-lucide="flip-horizontal-2" class="w-4 h-4"></i>
+                </button>
+                <div class="h-4 w-[1px] bg-parchment-300 mx-0.5"></div>
+                <button onclick="transformSelectedItem('forward')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Bring Forward">
+                    <i data-lucide="bring-to-front" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('backward')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Send Backward">
+                    <i data-lucide="send-to-back" class="w-4 h-4"></i>
+                </button>
+                <button onclick="transformSelectedItem('duplicate')" class="p-2 rounded-xl hover:bg-botanical-100 text-botanical-800 transition-colors" title="Duplicate Specimen">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+                <div class="h-4 w-[1px] bg-parchment-300 mx-0.5"></div>
+                <button onclick="transformSelectedItem('delete')" class="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition-colors" title="Remove Item">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Helper Tip Pill -->
+            <div id="helperToast" class="absolute bottom-4 right-4 bg-parchment-50/90 backdrop-blur-sm border border-parchment-300 px-3.5 py-2 rounded-xl shadow-md text-xs text-botanical-800 flex items-center gap-2 pointer-events-none z-20">
+                <i data-lucide="info" class="w-4 h-4 text-botanical-600"></i>
+                <span id="helperToastText">Tip: Click any item in the jar to move, resize, rotate, or layer it.</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- CUSTOM CONFIRMATION MODAL (No window.confirm) -->
+    <div id="clearModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-parchment-50 border border-parchment-300 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-botanical-900">Clear Terrarium?</h3>
+                    <p class="text-xs text-botanical-600">This will remove all placed plants and hardscape items.</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button onclick="closeClearModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-parchment-200 hover:bg-parchment-300 text-botanical-800 transition-colors">Cancel</button>
+                <button onclick="confirmClearTerrarium()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-sm">Clear Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SNAPSHOT CARD MODAL -->
+    <div id="snapshotModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-parchment-50 border border-parchment-300 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-parchment-300 pb-3">
+                <div>
+                    <h3 class="text-xl font-bold text-botanical-900">Botanical Specimen Card</h3>
+                    <p class="text-xs text-botanical-600">Your custom miniature ecosystem summary</p>
+                </div>
+                <button onclick="closeSnapshotModal()" class="p-1.5 rounded-lg hover:bg-parchment-200 text-botanical-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="snapshotSummaryContent" class="p-4 rounded-xl bg-parchment-100 border border-parchment-300 space-y-2 text-xs text-botanical-800">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="downloadSvgFile()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-botanical-700 hover:bg-botanical-800 text-white flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Download SVG Artwork</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. SOUND SYNTHESIZER (Web Audio API - Zero External Audio Files)
+         ********************************************************************/
+        const SoundFX = {
+            ctx: null,
+            enabled: true,
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            playPop(pitch = 380) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(pitch, now);
+                osc.frequency.exponentialRampToValueAtTime(pitch * 1.45, now + 0.09);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            },
+            playGlassChime() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [880, 1320].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+                    gain.gain.setValueAtTime(0.08, now + idx * 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.45 + idx * 0.04);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.04);
+                    osc.stop(now + 0.48 + idx * 0.04);
+                });
+            },
+            playMistSpray() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 3200;
+                filter.Q.value = 1.2;
+
+                const gain = this.ctx.createGain();
+                const now = this.ctx.currentTime;
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(0.18, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+        };
+
+        function toggleAudio() {
+            SoundFX.enabled = !SoundFX.enabled;
+            const icon = document.getElementById('soundIcon');
+            icon.setAttribute('data-lucide', SoundFX.enabled ? 'volume-2' : 'volume-x');
+            lucide.createIcons();
+            showHelperToast(SoundFX.enabled ? 'Studio audio effects enabled' : 'Studio audio muted');
+        }
+
+        /********************************************************************
+         * 2. VESSEL DEFINITIONS (SVG Geometries, Clips, Highlights, Lids)
+         ********************************************************************/
+        const VESSELS = {
+            classicJar: {
+                id: 'classicJar',
+                name: 'Classic Mason Jar',
+                subtitle: 'Wide-mouth corked dome',
+                bottomY: 610,
+                maxSubstrateHeight: 240,
+                clipPath: `M 210 120 L 390 120 L 390 155 C 445 175 470 220 470 290 L 470 540 C 470 585 435 610 385 610 L 215 610 C 165 610 130 585 130 540 L 130 290 C 130 220 155 175 210 155 Z`,
+                lidSvg: `
+                    <rect x="222" y="88" width="156" height="44" rx="8" fill="url(#corkPattern)" stroke="#704828" stroke-width="2.5"/>
+                    <ellipse cx="300" cy="88" rx="78" ry="8" fill="#c9976c" stroke="#704828" stroke-width="2"/>
+                `,
+                frontHighlights: `
+                    <!-- Neck Rim -->
+                    <rect x="202" y="114" width="196" height="14" rx="6" fill="rgba(255,255,255,0.4)" stroke="rgba(255,255,255,0.8)" stroke-width="2"/>
+                    <path d="M 210 155 Q 300 163 390 155" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+                    <!-- Left Curved Specular Highlight -->
+                    <path d="M 152 255 Q 145 390 152 535" fill="none" stroke="url(#glassSpecularLeft)" stroke-width="14" stroke-linecap="round"/>
+                    <path d="M 448 265 Q 454 395 448 530" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="6" stroke-linecap="round"/>
+                    <!-- Outer Glass Contour -->
+                    <path d="M 210 120 L 390 120 L 390 155 C 445 175 470 220 470 290 L 470 540 C 470 585 435 610 385 610 L 215 610 C 165 610 130 585 130 540 L 130 290 C 130 220 155 175 210 155 Z" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="3.5"/>
+                `
+            },
+            wardianCase: {
+                id: 'wardianCase',
+                name: 'Geometric Wardian',
+                subtitle: 'Faceted brass & glass prism',
+                bottomY: 610,
+                maxSubstrateHeight: 230,
+                clipPath: `M 300 95 L 445 215 L 475 455 L 395 610 L 205 610 L 125 455 L 155 215 Z`,
+                lidSvg: `
+                    <circle cx="300" cy="82" r="13" fill="none" stroke="#5c4632" stroke-width="4.5"/>
+                    <circle cx="300" cy="95" r="6" fill="#4a3728"/>
+                `,
+                frontHighlights: `
+                    <!-- Facet Reflections -->
+                    <polygon points="300,95 155,215 225,240" fill="rgba(255,255,255,0.18)"/>
+                    <polygon points="155,215 125,455 225,465 225,240" fill="rgba(255,255,255,0.08)"/>
+                    <!-- Soldered Copper/Bronze Frame Lines -->
+                    <path d="M 300 95 L 445 215 L 475 455 L 395 610 L 205 610 L 125 455 L 155 215 Z" fill="none" stroke="#4a382b" stroke-width="6" stroke-linejoin="round"/>
+                    <path d="M 300 95 L 225 240 L 225 465 L 205 610" fill="none" stroke="#5c4636" stroke-width="4.5" stroke-linejoin="round"/>
+                    <path d="M 300 95 L 375 240 L 375 465 L 395 610" fill="none" stroke="#5c4636" stroke-width="4.5" stroke-linejoin="round"/>
+                    <path d="M 155 215 L 225 240 L 375 240 L 445 215" fill="none" stroke="#5c4636" stroke-width="4" stroke-linejoin="round"/>
+                    <path d="M 125 455 L 225 465 L 375 465 L 475 455" fill="none" stroke="#5c4636" stroke-width="4" stroke-linejoin="round"/>
+                `
+            },
+            hangingGlobe: {
+                id: 'hangingGlobe',
+                name: 'Hanging Tear Globe',
+                subtitle: 'Suspended aerial bauble',
+                bottomY: 590,
+                maxSubstrateHeight: 210,
+                clipPath: `M 300 95 C 390 165 485 275 485 405 C 485 515 405 590 300 590 C 195 590 115 515 115 405 C 115 275 210 165 300 95 Z`,
+                lidSvg: `
+                    <path d="M 275 115 Q 300 75 325 115" fill="none" stroke="#d4a373" stroke-width="5"/>
+                `,
+                frontHighlights: `
+                    <!-- Side Circular Vent Hole Illusion -->
+                    <ellipse cx="300" cy="245" rx="68" ry="26" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.65)" stroke-width="2.5"/>
+                    <!-- Curved Specular Arc -->
+                    <path d="M 145 365 C 138 450 185 525 245 555" fill="none" stroke="url(#glassSpecularLeft)" stroke-width="14" stroke-linecap="round"/>
+                    <path d="M 455 375 C 460 445 425 510 380 540" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="6" stroke-linecap="round"/>
+                    <!-- Outer Contour -->
+                    <path d="M 300 95 C 390 165 485 275 485 405 C 485 515 405 590 300 590 C 195 590 115 515 115 405 C 115 275 210 165 300 95 Z" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="3.5"/>
+                `
+            },
+            apothecary: {
+                id: 'apothecary',
+                name: 'Apothecary Carboy',
+                subtitle: 'Narrow-neck vintage flask',
+                bottomY: 610,
+                maxSubstrateHeight: 235,
+                clipPath: `M 262 105 L 338 105 L 338 190 C 435 225 475 285 475 390 L 475 535 C 475 585 435 610 380 610 L 220 610 C 165 610 125 585 125 535 L 125 390 C 125 285 165 225 262 190 Z`,
+                lidSvg: `
+                    <polygon points="268,72 332,72 324,122 276,122" fill="url(#corkPattern)" stroke="#704828" stroke-width="2.5"/>
+                    <ellipse cx="300" cy="72" rx="32" ry="6" fill="#d4a373" stroke="#704828" stroke-width="2"/>
+                `,
+                frontHighlights: `
+                    <!-- Flanged Bottle Lip -->
+                    <rect x="252" y="98" width="96" height="12" rx="5" fill="rgba(255,255,255,0.45)" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>
+                    <path d="M 262 190 Q 300 198 338 190" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+                    <!-- Shoulder & Body Highlights -->
+                    <path d="M 155 320 Q 142 430 154 545" fill="none" stroke="url(#glassSpecularLeft)" stroke-width="15" stroke-linecap="round"/>
+                    <path d="M 448 330 Q 456 435 446 540" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="6" stroke-linecap="round"/>
+                    <path d="M 262 105 L 338 105 L 338 190 C 435 225 475 285 475 390 L 475 535 C 475 585 435 610 380 610 L 220 610 C 165 610 125 585 125 535 L 125 390 C 125 285 165 225 262 190 Z" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="3.5"/>
+                `
+            }
+        };
+
+        /********************************************************************
+         * 3. BOTANICAL & HARDSCAPE CATALOG (Rich Custom Vector Graphics)
+         ********************************************************************/
+        const CATALOG_ITEMS = {
+            plants: [
+                {
+                    id: 'fern',
+                    name: 'Boston Fern',
+                    tag: 'Lush Fronds',
+                    defaultScale: 1.05,
+                    svg: `<g>
+                        <!-- Left Arching Frond -->
+                        <path d="M0,45 Q-18,10 -52,-15" fill="none" stroke="#3b6e28" stroke-width="2.5" stroke-linecap="round"/>
+                        <ellipse cx="-12" cy="30" rx="8" ry="3.5" transform="rotate(-25 -12 30)" fill="#4d8a36"/>
+                        <ellipse cx="-22" cy="18" rx="9" ry="3.8" transform="rotate(-30 -22 18)" fill="#5fa145"/>
+                        <ellipse cx="-34" cy="5" rx="8" ry="3.5" transform="rotate(-35 -34 5)" fill="#4d8a36"/>
+                        <ellipse cx="-45" cy="-7" rx="6" ry="3" transform="rotate(-40 -45 -7)" fill="#6ab04c"/>
+                        <!-- Center Tall Frond -->
+                        <path d="M0,45 Q-3,-5 4,-48" fill="none" stroke="#2d5a1e" stroke-width="3" stroke-linecap="round"/>
+                        <ellipse cx="-8" cy="24" rx="9" ry="4" transform="rotate(-15 -8 24)" fill="#4d8a36"/>
+                        <ellipse cx="8" cy="20" rx="9" ry="4" transform="rotate(15 8 20)" fill="#5fa145"/>
+                        <ellipse cx="-9" cy="8" rx="10" ry="4" transform="rotate(-15 -9 8)" fill="#5fa145"/>
+                        <ellipse cx="9" cy="4" rx="10" ry="4" transform="rotate(15 9 4)" fill="#4d8a36"/>
+                        <ellipse cx="-8" cy="-10" rx="9" ry="3.8" transform="rotate(-15 -8 -10)" fill="#6ab04c"/>
+                        <ellipse cx="9" cy="-14" rx="9" ry="3.8" transform="rotate(15 9 -14)" fill="#5fa145"/>
+                        <ellipse cx="-6" cy="-28" rx="7.5" ry="3.2" transform="rotate(-10 -6 -28)" fill="#6ab04c"/>
+                        <ellipse cx="8" cy="-31" rx="7.5" ry="3.2" transform="rotate(10 8 -31)" fill="#6ab04c"/>
+                        <ellipse cx="3" cy="-44" rx="5" ry="2.5" transform="rotate(5 3 -44)" fill="#78c257"/>
+                        <!-- Right Arching Frond -->
+                        <path d="M0,45 Q22,12 54,-10" fill="none" stroke="#3b6e28" stroke-width="2.5" stroke-linecap="round"/>
+                        <ellipse cx="14" cy="30" rx="8" ry="3.5" transform="rotate(25 14 30)" fill="#5fa145"/>
+                        <ellipse cx="26" cy="18" rx="9" ry="3.8" transform="rotate(30 26 18)" fill="#4d8a36"/>
+                        <ellipse cx="38" cy="6" rx="8" ry="3.5" transform="rotate(35 38 6)" fill="#6ab04c"/>
+                        <ellipse cx="48" cy="-4" rx="6" ry="3" transform="rotate(40 48 -4)" fill="#78c257"/>
+                    </g>`
+                },
+                {
+                    id: 'echeveria',
+                    name: 'Blue Echeveria',
+                    tag: 'Rosette Succulent',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <!-- Outer Petals -->
+                        <ellipse cx="0" cy="-24" rx="11" ry="20" fill="#598381" stroke="#3f6160" stroke-width="1"/>
+                        <ellipse cx="21" cy="-12" rx="11" ry="20" transform="rotate(60 21 -12)" fill="#689694" stroke="#3f6160" stroke-width="1"/>
+                        <ellipse cx="21" cy="12" rx="11" ry="20" transform="rotate(120 21 12)" fill="#598381" stroke="#3f6160" stroke-width="1"/>
+                        <ellipse cx="0" cy="24" rx="11" ry="20" fill="#689694" stroke="#3f6160" stroke-width="1"/>
+                        <ellipse cx="-21" cy="12" rx="11" ry="20" transform="rotate(240 -21 12)" fill="#598381" stroke="#3f6160" stroke-width="1"/>
+                        <ellipse cx="-21" cy="-12" rx="11" ry="20" transform="rotate(300 -21 -12)" fill="#689694" stroke="#3f6160" stroke-width="1"/>
+                        <!-- Middle Petals with Pink Tips -->
+                        <ellipse cx="11" cy="-14" rx="8" ry="15" transform="rotate(30 11 -14)" fill="#7fadad" stroke="#e5989b" stroke-width="1.2"/>
+                        <ellipse cx="17" cy="2" rx="8" ry="15" transform="rotate(90 17 2)" fill="#8bb8b8" stroke="#e5989b" stroke-width="1.2"/>
+                        <ellipse cx="9" cy="15" rx="8" ry="15" transform="rotate(150 9 15)" fill="#7fadad" stroke="#e5989b" stroke-width="1.2"/>
+                        <ellipse cx="-9" cy="15" rx="8" ry="15" transform="rotate(210 -9 15)" fill="#8bb8b8" stroke="#e5989b" stroke-width="1.2"/>
+                        <ellipse cx="-17" cy="2" rx="8" ry="15" transform="rotate(270 -17 2)" fill="#7fadad" stroke="#e5989b" stroke-width="1.2"/>
+                        <ellipse cx="-11" cy="-14" rx="8" ry="15" transform="rotate(330 -11 -14)" fill="#8bb8b8" stroke="#e5989b" stroke-width="1.2"/>
+                        <!-- Center Bud -->
+                        <circle cx="0" cy="0" r="9" fill="#a3cfcf" stroke="#e5989b" stroke-width="1.5"/>
+                        <circle cx="0" cy="0" r="4" fill="#d8f3dc"/>
+                    </g>`
+                },
+                {
+                    id: 'fittonia',
+                    name: 'Pink Fittonia',
+                    tag: 'Nerve Plant',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <!-- Left Leaf -->
+                        <g transform="translate(-18, 8) rotate(-28)">
+                            <path d="M0,25 C-18,15 -20,-15 0,-28 C20,-15 18,15 0,25 Z" fill="#2d5a3c" stroke="#1e3f29" stroke-width="1.2"/>
+                            <path d="M0,22 L0,-24 M0,10 L-10,2 M0,4 L10,-4 M0,-6 L-9,-14 M0,-10 L8,-17" fill="none" stroke="#ff758f" stroke-width="1.8" stroke-linecap="round"/>
+                        </g>
+                        <!-- Right Leaf -->
+                        <g transform="translate(18, 10) rotate(28)">
+                            <path d="M0,25 C-18,15 -20,-15 0,-28 C20,-15 18,15 0,25 Z" fill="#2d5a3c" stroke="#1e3f29" stroke-width="1.2"/>
+                            <path d="M0,22 L0,-24 M0,10 L-10,2 M0,4 L10,-4 M0,-6 L-9,-14 M0,-10 L8,-17" fill="none" stroke="#ff758f" stroke-width="1.8" stroke-linecap="round"/>
+                        </g>
+                        <!-- Center Front Leaf -->
+                        <g transform="translate(0, -4)">
+                            <path d="M0,28 C-20,18 -22,-18 0,-32 C22,-18 20,18 0,28 Z" fill="#386b48" stroke="#1e3f29" stroke-width="1.2"/>
+                            <path d="M0,25 L0,-28 M0,12 L-12,3 M0,6 L12,-3 M0,-4 L-11,-13 M0,-10 L10,-19" fill="none" stroke="#ff8fa3" stroke-width="2" stroke-linecap="round"/>
+                        </g>
+                    </g>`
+                },
+                {
+                    id: 'airplant',
+                    name: 'Tillandsia Xerographica',
+                    tag: 'Sculptural Air Plant',
+                    defaultScale: 1.05,
+                    svg: `<g>
+                        <path d="M0,25 Q-28,22 -48,38 Q-25,10 0,16" fill="#94a89a" stroke="#6b7f71" stroke-width="1"/>
+                        <path d="M0,25 Q28,22 48,38 Q25,10 0,16" fill="#94a89a" stroke="#6b7f71" stroke-width="1"/>
+                        <path d="M0,22 Q-38,0 -52,-18 Q-22,2 0,14" fill="#a3b8aa" stroke="#6b7f71" stroke-width="1"/>
+                        <path d="M0,22 Q38,0 52,-18 Q22,2 0,14" fill="#a3b8aa" stroke="#6b7f71" stroke-width="1"/>
+                        <path d="M0,20 Q-22,-20 -30,-44 Q-10,-12 0,12" fill="#b4c7ba" stroke="#7a8f80" stroke-width="1"/>
+                        <path d="M0,20 Q22,-20 30,-44 Q10,-12 0,12" fill="#b4c7ba" stroke="#7a8f80" stroke-width="1"/>
+                        <path d="M0,20 Q-6,-25 0,-50 Q8,-22 0,20" fill="#c2d6c8" stroke="#7a8f80" stroke-width="1"/>
+                        <ellipse cx="0" cy="22" rx="10" ry="5" fill="#7f9183"/>
+                    </g>`
+                },
+                {
+                    id: 'cactus',
+                    name: 'Golden Barrel Cactus',
+                    tag: 'Desert Specimen',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <!-- Cactus Body -->
+                        <ellipse cx="0" cy="6" rx="28" ry="30" fill="#4f772d" stroke="#31572c" stroke-width="2"/>
+                        <!-- Ribs -->
+                        <path d="M-14,-21 Q-22,6 -14,33" fill="none" stroke="#31572c" stroke-width="1.5"/>
+                        <path d="M-5,-24 Q-8,6 -5,35" fill="none" stroke="#31572c" stroke-width="1.5"/>
+                        <path d="M5,-24 Q8,6 5,35" fill="none" stroke="#31572c" stroke-width="1.5"/>
+                        <path d="M14,-21 Q22,6 14,33" fill="none" stroke="#31572c" stroke-width="1.5"/>
+                        <!-- Spines -->
+                        <circle cx="-18" cy="-4" r="1.5" fill="#fef08a"/>
+                        <circle cx="-19" cy="12" r="1.5" fill="#fef08a"/>
+                        <circle cx="0" cy="-10" r="1.5" fill="#fef08a"/>
+                        <circle cx="0" cy="8" r="1.5" fill="#fef08a"/>
+                        <circle cx="0" cy="22" r="1.5" fill="#fef08a"/>
+                        <circle cx="18" cy="-4" r="1.5" fill="#fef08a"/>
+                        <circle cx="19" cy="12" r="1.5" fill="#fef08a"/>
+                        <!-- Crown Flower -->
+                        <circle cx="-5" cy="-24" r="5" fill="#f43f5e"/>
+                        <circle cx="5" cy="-24" r="5" fill="#fb7185"/>
+                        <circle cx="0" cy="-26" r="6" fill="#fda4af"/>
+                        <circle cx="0" cy="-26" r="2.5" fill="#fef08a"/>
+                    </g>`
+                },
+                {
+                    id: 'mushrooms',
+                    name: 'Toadstool Trio',
+                    tag: 'Woodland Fungi',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <!-- Tall Center Mushroom -->
+                        <path d="M-4,35 Q-3,8 -1,-12 L6,-12 Q8,8 6,35 Z" fill="#f5ebe0" stroke="#d5bdaf" stroke-width="1"/>
+                        <path d="M-24,-10 C-24,-34 28,-34 28,-10 Z" fill="#d90429" stroke="#9b001a" stroke-width="1.2"/>
+                        <circle cx="-8" cy="-21" r="3" fill="#fff"/>
+                        <circle cx="6" cy="-24" r="3.5" fill="#fff"/>
+                        <circle cx="15" cy="-16" r="2.2" fill="#fff"/>
+                        <!-- Left Mini Mushroom -->
+                        <path d="M-22,36 Q-24,20 -20,10 L-15,10 Q-17,22 -16,36 Z" fill="#f5ebe0" stroke="#d5bdaf" stroke-width="1"/>
+                        <path d="M-32,12 C-32,-2 -4,-2 -4,12 Z" fill="#ef233c" stroke="#9b001a" stroke-width="1"/>
+                        <circle cx="-22" cy="6" r="2" fill="#fff"/>
+                        <circle cx="-13" cy="8" r="1.6" fill="#fff"/>
+                        <!-- Right Mini Mushroom -->
+                        <path d="M16,36 Q18,22 22,14 L27,14 Q24,24 22,36 Z" fill="#f5ebe0" stroke="#d5bdaf" stroke-width="1"/>
+                        <path d="M11,16 C11,4 36,4 36,16 Z" fill="#e63946" stroke="#9b001a" stroke-width="1"/>
+                        <circle cx="21" cy="10" r="2" fill="#fff"/>
+                        <circle cx="29" cy="12" r="1.5" fill="#fff"/>
+                    </g>`
+                },
+                {
+                    id: 'mossball',
+                    name: 'Velvet Moss Mound',
+                    tag: 'Pillow Bryophyte',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <path d="M-42,20 C-45,-5 -22,-22 2,-18 C25,-22 45,-5 42,20 Z" fill="#4f772d" stroke="#31572c" stroke-width="1.5"/>
+                        <circle cx="-15" cy="2" r="14" fill="#6a994e"/>
+                        <circle cx="12" cy="-2" r="16" fill="#588157"/>
+                        <circle cx="2" cy="8" r="14" fill="#80b918" opacity="0.65"/>
+                        <ellipse cx="0" cy="18" rx="42" ry="6" fill="#386641"/>
+                    </g>`
+                },
+                {
+                    id: 'pilea',
+                    name: 'Chinese Money Plant',
+                    tag: 'Coin-Leaved Pilea',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <path d="M0,38 Q-12,12 -24,-8" fill="none" stroke="#52796f" stroke-width="2.5"/>
+                        <path d="M0,38 Q2,5 0,-26" fill="none" stroke="#52796f" stroke-width="2.5"/>
+                        <path d="M0,38 Q14,14 26,-4" fill="none" stroke="#52796f" stroke-width="2.5"/>
+                        <!-- Round Coin Leaves -->
+                        <circle cx="-24" cy="-10" r="14" fill="#74c69d" stroke="#40916c" stroke-width="1.5"/>
+                        <circle cx="-22" cy="-10" r="2" fill="#d8f3dc"/>
+                        <circle cx="0" cy="-28" r="16" fill="#52b788" stroke="#2d6a4f" stroke-width="1.5"/>
+                        <circle cx="0" cy="-27" r="2.2" fill="#d8f3dc"/>
+                        <circle cx="26" cy="-6" r="13" fill="#74c69d" stroke="#40916c" stroke-width="1.5"/>
+                        <circle cx="24" cy="-6" r="2" fill="#d8f3dc"/>
+                        <circle cx="-10" cy="10" r="11" fill="#40916c" stroke="#1b4332" stroke-width="1.2"/>
+                        <circle cx="12" cy="12" r="11" fill="#52b788" stroke="#2d6a4f" stroke-width="1.2"/>
+                    </g>`
+                }
+            ],
+            decor: [
+                {
+                    id: 'driftwood',
+                    name: 'Twisted Driftwood',
+                    tag: 'Sculpted Branch',
+                    defaultScale: 1.1,
+                    svg: `<g>
+                        <path d="M-45,28 C-20,22 -5,5 12,-18 C20,-28 32,-38 46,-42 C35,-25 22,-10 18,4 C28,0 38,-6 48,-8 C34,6 18,16 4,24 C-12,32 -28,36 -45,28 Z" fill="#7f5539" stroke="#582f0e" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M-25,24 Q0,12 22,-18" fill="none" stroke="#9c6644" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M-10,24 Q10,16 28,2" fill="none" stroke="#582f0e" stroke-width="1.5" stroke-linecap="round"/>
+                    </g>`
+                },
+                {
+                    id: 'quartz',
+                    name: 'Rose Quartz Cluster',
+                    tag: 'Raw Crystal Geode',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <!-- Left Shard -->
+                        <polygon points="-26,26 -34,-8 -18,-24 -8,2 -10,26" fill="#f4acb7" stroke="#9d4edd" stroke-opacity="0.4" stroke-width="1.2"/>
+                        <polygon points="-34,-8 -18,-24 -22,26 -26,26" fill="#ffcad4" opacity="0.7"/>
+                        <!-- Tall Center Spire -->
+                        <polygon points="-12,28 -10,-26 4,-44 16,-22 12,28" fill="#ffccd5" stroke="#c9184a" stroke-opacity="0.3" stroke-width="1.5"/>
+                        <polygon points="-10,-26 4,-44 2,28 -12,28" fill="#fff0f3" opacity="0.65"/>
+                        <!-- Right Shard -->
+                        <polygon points="8,28 16,-14 32,-20 36,4 22,28" fill="#f4acb7" stroke="#c9184a" stroke-opacity="0.3" stroke-width="1.2"/>
+                        <polygon points="16,-14 32,-20 20,28 8,28" fill="#ffe5ec" opacity="0.5"/>
+                    </g>`
+                },
+                {
+                    id: 'amethyst',
+                    name: 'Amethyst Spire',
+                    tag: 'Violet Crystal',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <polygon points="-22,26 -28,-6 -14,-22 -4,2 -6,26" fill="#9d4edd" stroke="#5a189a" stroke-width="1.2"/>
+                        <polygon points="-10,28 -8,-24 4,-40 16,-20 10,28" fill="#c77dff" stroke="#5a189a" stroke-width="1.5"/>
+                        <polygon points="-8,-24 4,-40 2,28 -10,28" fill="#e0aaff" opacity="0.65"/>
+                        <polygon points="8,28 14,-10 28,-16 30,6 20,28" fill="#7b2cbf" stroke="#3c096c" stroke-width="1.2"/>
+                    </g>`
+                },
+                {
+                    id: 'stones',
+                    name: 'Zen River Stones',
+                    tag: 'Stacked Cairn',
+                    defaultScale: 1.0,
+                    svg: `<g>
+                        <ellipse cx="0" cy="22" rx="34" ry="12" fill="#6c757d" stroke="#495057" stroke-width="1.5"/>
+                        <ellipse cx="-2" cy="8" rx="24" ry="10" fill="#adb5bd" stroke="#495057" stroke-width="1.5"/>
+                        <ellipse cx="2" cy="-4" rx="15" ry="7" fill="#ced4da" stroke="#6c757d" stroke-width="1.5"/>
+                    </g>`
+                },
+                {
+                    id: 'lantern',
+                    name: 'Glowing Stone Lantern',
+                    tag: 'Miniature Pagoda',
+                    defaultScale: 1.05,
+                    svg: `<g>
+                        <!-- Base Pedestal -->
+                        <rect x="-16" y="24" width="32" height="8" rx="2" fill="#7f8c8d" stroke="#576574" stroke-width="1.5"/>
+                        <rect x="-10" y="6" width="20" height="18" fill="#95a5a6" stroke="#576574" stroke-width="1.5"/>
+                        <!-- Glowing Window Box -->
+                        <rect x="-14" y="-14" width="28" height="20" rx="2" fill="#576574" stroke="#2f3640" stroke-width="1.5"/>
+                        <rect x="-9" y="-10" width="18" height="12" rx="1" fill="#fde047" filter="url(#warmGlow)"/>
+                        <!-- Pagoda Roof -->
+                        <path d="M-26,-12 Q0,-22 26,-12 L16,-26 Q0,-30 -16,-26 Z" fill="#7f8c8d" stroke="#2f3640" stroke-width="1.5"/>
+                        <circle cx="0" cy="-31" r="4" fill="#95a5a6" stroke="#2f3640" stroke-width="1.2"/>
+                    </g>`
+                },
+                {
+                    id: 'frog',
+                    name: 'Emerald Tree Frog',
+                    tag: 'Tiny Amphibian',
+                    defaultScale: 0.95,
+                    svg: `<g>
+                        <!-- Hind Legs -->
+                        <ellipse cx="-14" cy="12" rx="8" ry="5" transform="rotate(-20 -14 12)" fill="#52b788" stroke="#2d6a4f" stroke-width="1.2"/>
+                        <ellipse cx="14" cy="12" rx="8" ry="5" transform="rotate(20 14 12)" fill="#52b788" stroke="#2d6a4f" stroke-width="1.2"/>
+                        <!-- Body -->
+                        <ellipse cx="0" cy="4" rx="15" ry="13" fill="#74c69d" stroke="#2d6a4f" stroke-width="1.5"/>
+                        <ellipse cx="0" cy="7" rx="10" ry="8" fill="#d8f3dc"/>
+                        <!-- Bulging Eyes -->
+                        <circle cx="-9" cy="-8" r="6" fill="#74c69d" stroke="#2d6a4f" stroke-width="1.2"/>
+                        <circle cx="9" cy="-8" r="6" fill="#74c69d" stroke="#2d6a4f" stroke-width="1.2"/>
+                        <circle cx="-9" cy="-9" r="3.5" fill="#ef233c"/>
+                        <circle cx="9" cy="-9" r="3.5" fill="#ef233c"/>
+                        <circle cx="-9" cy="-9" r="1.5" fill="#000"/>
+                        <circle cx="9" cy="-9" r="1.5" fill="#000"/>
+                        <!-- Smile -->
+                        <path d="M-7,-1 Q0,4 7,-1" fill="none" stroke="#2d6a4f" stroke-width="1.5" stroke-linecap="round"/>
+                    </g>`
+                },
+                {
+                    id: 'cottage',
+                    name: 'Fairy Acorn House',
+                    tag: 'Woodland Dwelling',
+                    defaultScale: 1.05,
+                    svg: `<g>
+                        <!-- Pumpkin/Mushroom Round Walls -->
+                        <path d="M-22,28 L-24,-2 Q0,-12 24,-2 L22,28 Z" fill="#fae1dd" stroke="#cb997e" stroke-width="1.5"/>
+                        <!-- Wooden Round Door -->
+                        <path d="M-8,28 L-8,12 C-8,4 8,4 8,12 L8,28 Z" fill="#9c6644" stroke="#582f0e" stroke-width="1.5"/>
+                        <circle cx="4" cy="18" r="1.5" fill="#ffd166"/>
+                        <!-- Glowing Window -->
+                        <circle cx="-12" cy="6" r="4.5" fill="#fde047" stroke="#7f5539" stroke-width="1.5"/>
+                        <!-- Acorn Cap Roof -->
+                        <path d="M-30,0 C-30,-28 30,-28 30,0 Z" fill="#8a5a44" stroke="#582f0e" stroke-width="1.8"/>
+                        <path d="M-3,-22 Q0,-32 6,-34" fill="none" stroke="#582f0e" stroke-width="3" stroke-linecap="round"/>
+                    </g>`
+                },
+                {
+                    id: 'snail',
+                    name: 'Golden Garden Snail',
+                    tag: 'Shell Dweller',
+                    defaultScale: 0.9,
+                    svg: `<g>
+                        <!-- Soft Body -->
+                        <path d="M-24,16 Q-10,18 14,16 Q24,14 26,6 Q24,2 18,8 L-20,10 Z" fill="#ddb892" stroke="#9c6644" stroke-width="1.2"/>
+                        <!-- Feelers -->
+                        <path d="M22,6 L28,-4 M19,7 L22,-2" stroke="#9c6644" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="28" cy="-4" r="1.5" fill="#582f0e"/>
+                        <!-- Spiral Shell -->
+                        <circle cx="-4" cy="2" r="14" fill="#e07a5f" stroke="#8f3b27" stroke-width="1.5"/>
+                        <path d="M-4,2 m0,-8 a8,8 0 1,1 -6,12 a5,5 0 1,1 8,-4" fill="none" stroke="#f4a261" stroke-width="2" stroke-linecap="round"/>
+                    </g>`
+                }
+            ]
+        };
+
+        /********************************************************************
+         * 4. APPLICATION STATE
+         ********************************************************************/
+        const state = {
+            vesselId: 'classicJar',
+            hasLid: true,
+            lightingMode: 'day', // 'day', 'twilight', 'night'
+            humidity: 68,
+            substrates: [
+                { id: 'pebbles', name: 'River Pebbles (Drainage)', pattern: 'url(#pebblesPattern)', height: 34, color: '#9e978f' },
+                { id: 'charcoal', name: 'Activated Charcoal', pattern: 'url(#charcoalPattern)', height: 16, color: '#26282a' },
+                { id: 'soil', name: 'Organic Potting Soil', pattern: 'url(#soilPattern)', height: 48, color: '#4a3222' },
+                { id: 'sand', name: 'Golden Desert Sand', pattern: 'url(#sandPattern)', height: 14, color: '#dfb982' },
+                { id: 'moss', name: 'Sheet Sphagnum Moss', pattern: 'url(#mossPattern)', height: 22, color: '#4f773b' }
+            ],
+            placedItems: [],
+            selectedItemId: null,
+            ambiance: {
+                fairyLights: false,
+                fireflies: false,
+                ladybug: true,
+                butterfly: false
+            },
+            // Drag interaction tracking
+            dragging: {
+                active: false,
+                itemId: null,
+                offsetX: 0,
+                offsetY: 0
+            },
+            // Creature animation coordinates
+            creatures: {
+                ladybugX: 250,
+                ladybugDir: 1,
+                butterflyAngle: 0,
+                firefliesList: [
+                    { x: 240, y: 310, vx: 0.35, vy: -0.25 },
+                    { x: 350, y: 260, vx: -0.3, vy: 0.28 },
+                    { x: 290, y: 380, vx: 0.25, vy: 0.3 },
+                    { x: 330, y: 210, vx: -0.4, vy: -0.2 },
+                    { x: 220, y: 250, vx: 0.3, vy: 0.22 }
+                ]
+            }
+        };
+
+        let nextUniqueId = 100;
+
+        /********************************************************************
+         * 5. INITIALIZATION & UI POPULATION
+         ********************************************************************/
+        window.onload = function() {
+            lucide.createIcons();
+            renderVesselsCatalog();
+            renderSubstrateSliders();
+            renderItemCatalog('plants', 'plantsGrid');
+            renderItemCatalog('decor', 'decorGrid');
+            
+            // Load Initial Lush Rainforest Preset
+            loadPreset('rainforest', true);
+
+            // Attach Global Pointer Move & Up Listeners for Smooth Dragging
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('keydown', onKeyDown);
+
+            // Start Ambient Creatures Animation Loop
+            requestAnimationFrame(animateEcosystemLoop);
+        };
+
+        function switchTab(tabName) {
+            SoundFX.playPop(420);
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-botanical-700', 'text-white', 'shadow-sm');
+                btn.classList.add('text-botanical-800', 'hover:bg-parchment-100');
+            });
+            const activeBtn = document.getElementById(`tab-${tabName}`);
+            activeBtn.classList.remove('text-botanical-800', 'hover:bg-parchment-100');
+            activeBtn.classList.add('bg-botanical-700', 'text-white', 'shadow-sm');
+        }
+
+        function renderVesselsCatalog() {
+            const container = document.getElementById('vesselGrid');
+            container.innerHTML = Object.values(VESSELS).map(v => {
+                const isSelected = state.vesselId === v.id;
+                return `
+                    <button onclick="selectVessel('${v.id}')" class="p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
+                        isSelected 
+                        ? 'border-botanical-600 bg-botanical-50/80 shadow-sm' 
+                        : 'border-parchment-300 bg-parchment-100/60 hover:bg-parchment-200/60'
+                    }">
+                        <div class="w-full h-20 flex items-center justify-center mb-2">
+                            <svg viewBox="80 60 440 580" class="w-16 h-16">
+                                <path d="${v.clipPath}" fill="rgba(186, 230, 253, 0.35)" stroke="#3e5538" stroke-width="14"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-botanical-900">${v.name}</div>
+                            <div class="text-[10px] text-botanical-600 leading-tight mt-0.5">${v.subtitle}</div>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderSubstrateSliders() {
+            const container = document.getElementById('substrateControls');
+            // Display top-to-bottom in UI so it matches visual stack
+            const reversed = [...state.substrates].reverse();
+            container.innerHTML = reversed.map(layer => `
+                <div class="p-3 rounded-xl bg-parchment-100 border border-parchment-300 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3.5 h-3.5 rounded-full border border-black/20 inline-block" style="background:${layer.color}"></span>
+                            <span class="text-xs font-bold text-botanical-900">${layer.name}</span>
+                        </div>
+                        <span id="label-sub-${layer.id}" class="text-xs font-semibold text-botanical-700">${layer.height} mm</span>
+                    </div>
+                    <input type="range" min="0" max="80" value="${layer.height}" 
+                           oninput="updateSubstrateHeight('${layer.id}', this.value)"
+                           class="w-full">
+                </div>
+            `).join('');
+        }
+
+        function renderItemCatalog(category, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = CATALOG_ITEMS[category].map(item => `
+                <div draggable="true" ondragstart="handleDragStart(event, '${category}', '${item.id}')"
+                     onclick="addItemToTerrarium('${category}', '${item.id}')"
+                     class="group cursor-pointer p-2.5 rounded-xl bg-parchment-100 hover:bg-botanical-50 border border-parchment-300 hover:border-botanical-500 transition-all flex flex-col items-center text-center shadow-xs hover:shadow-md active:scale-95">
+                    <div class="w-16 h-16 flex items-center justify-center overflow-visible">
+                        <svg viewBox="-60 -60 120 110" class="w-14 h-14 group-hover:scale-110 transition-transform overflow-visible">
+                            ${item.svg}
+                        </svg>
+                    </div>
+                    <div class="text-xs font-bold text-botanical-900 mt-1 leading-tight">${item.name}</div>
+                    <div class="text-[10px] text-botanical-600">${item.tag}</div>
+                </div>
+            `).join('');
+        }
+
+        /********************************************************************
+         * 6. TERRARIUM SVG RENDERING ENGINE
+         ********************************************************************/
+        function renderVesselGeometry() {
+            const vessel = VESSELS[state.vesselId];
+            document.getElementById('clipVesselPath').setAttribute('d', vessel.clipPath);
+            document.getElementById('vesselBackGlass').setAttribute('d', vessel.clipPath);
+            document.getElementById('vesselFrontHighlights').innerHTML = vessel.frontHighlights;
+            document.getElementById('vesselLidGroup').innerHTML = state.hasLid ? vessel.lidSvg : '';
+
+            // Toggle hanging cord and gentle sway for Hanging Globe
+            const standGroup = document.getElementById('hangingStandGroup');
+            const mainVessel = document.getElementById('mainVesselContainer');
+            const floorShadow = document.getElementById('vesselFloorShadow');
+
+            if (state.vesselId === 'hangingGlobe') {
+                standGroup.classList.remove('hidden');
+                mainVessel.classList.add('sway-vessel');
+                floorShadow.setAttribute('rx', '115');
+                floorShadow.setAttribute('fill', 'rgba(0,0,0,0.16)');
+            } else {
+                standGroup.classList.add('hidden');
+                mainVessel.classList.remove('sway-vessel');
+                floorShadow.setAttribute('rx', '175');
+                floorShadow.setAttribute('fill', 'rgba(0,0,0,0.28)');
+            }
+
+            renderSubstrates();
+            renderFairyLights();
+        }
+
+        function getSubstrateSurfaceY() {
+            const vessel = VESSELS[state.vesselId];
+            const totalHeight = state.substrates.reduce((sum, s) => sum + Number(s.height), 0);
+            return vessel.bottomY - totalHeight;
+        }
+
+        function renderSubstrates() {
+            const vessel = VESSELS[state.vesselId];
+            const stackLayer = document.getElementById('substrateStackLayer');
+            let currentBottomY = vessel.bottomY;
+            let svgHtml = '';
+
+            state.substrates.forEach((sub, idx) => {
+                const h = Number(sub.height);
+                if (h <= 0) return;
+                const topY = currentBottomY - h;
+
+                // Create organic undulating top wave for each layer
+                const waveAmp = idx === state.substrates.length - 1 ? 6 : 3.5;
+                const d = `
+                    M 80 ${topY}
+                    Q 190 ${topY - waveAmp} 300 ${topY}
+                    T 520 ${topY}
+                    L 520 ${currentBottomY + 12}
+                    L 80 ${currentBottomY + 12}
+                    Z
+                `;
+                svgHtml += `<path d="${d}" fill="${sub.pattern}" stroke="rgba(0,0,0,0.18)" stroke-width="1"/>`;
+                currentBottomY = topY;
+            });
+
+            stackLayer.innerHTML = svgHtml;
+        }
+
+        function renderPlacedItems() {
+            const layer = document.getElementById('placedItemsLayer');
+            layer.innerHTML = state.placedItems.map(item => {
+                const catalogObj = [...CATALOG_ITEMS.plants, ...CATALOG_ITEMS.decor].find(c => c.id === item.typeId);
+                if (!catalogObj) return '';
+                const isSelected = item.id === state.selectedItemId;
+                const scaleX = item.flipX ? -item.scale : item.scale;
+                return `
+                    <g id="item-${item.id}" 
+                       class="placed-item ${isSelected ? 'selected' : ''}"
+                       transform="translate(${item.x}, ${item.y}) rotate(${item.rotation}) scale(${scaleX}, ${item.scale})"
+                       onpointerdown="onItemPointerDown(event, ${item.id})">
+                        <!-- Invisible hit target for easier grabbing -->
+                        <circle cx="0" cy="0" r="34" fill="transparent" />
+                        ${catalogObj.svg}
+                    </g>
+                `;
+            }).join('');
+
+            updateSelectionInspector();
+        }
+
+        function renderFairyLights() {
+            const container = document.getElementById('fairyLightsLayer');
+            if (!state.ambiance.fairyLights) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+
+            // Copper wire loops inside vessel with glowing LED nodes
+            const wirePath = `M 210 185 Q 300 245 395 195 Q 440 285 280 315 Q 155 340 215 425 Q 320 460 420 395`;
+            const ledPoints = [
+                [235, 202], [285, 218], [345, 212], [390, 200],
+                [405, 255], [345, 295], [275, 315], [205, 338],
+                [195, 390], [255, 432], [335, 435], [405, 405]
+            ];
+
+            let html = `<path d="${wirePath}" fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="3,1" opacity="0.8"/>`;
+            ledPoints.forEach(([x, y], i) => {
+                const delay = (i * 0.25).toFixed(2);
+                html += `
+                    <circle cx="${x}" cy="${y}" r="4.5" fill="#fde047" filter="url(#warmGlow)" class="firefly-dot" style="animation-delay:${delay}s"/>
+                    <circle cx="${x}" cy="${y}" r="2" fill="#ffffff"/>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        /********************************************************************
+         * 7. INTERACTION LOGIC (Add, Drag, Scale, Rotate, Layer, Delete)
+         ********************************************************************/
+        function selectVessel(vesselId) {
+            state.vesselId = vesselId;
+            SoundFX.playGlassChime();
+            renderVesselsCatalog();
+            renderVesselGeometry();
+        }
+
+        function toggleVesselLid(checked) {
+            state.hasLid = checked;
+            SoundFX.playPop(340);
+            renderVesselGeometry();
+            updateHumidityDisplay();
+        }
+
+        function updateSubstrateHeight(subId, val) {
+            const sub = state.substrates.find(s => s.id === subId);
+            if (!sub) return;
+            const oldSurfaceY = getSubstrateSurfaceY();
+            sub.height = Number(val);
+            document.getElementById(`label-sub-${subId}`).textContent = `${val} mm`;
+            
+            const newSurfaceY = getSubstrateSurfaceY();
+            const deltaY = newSurfaceY - oldSurfaceY;
+
+            // Shift placed items vertically with the substrate surface so plants stay rooted
+            state.placedItems.forEach(item => {
+                item.y = Math.max(150, Math.min(585, item.y + deltaY));
+            });
+
+            renderSubstrates();
+            renderPlacedItems();
+            updateHumidityDisplay();
+        }
+
+        function balanceSubstrates() {
+            const defaults = { pebbles: 34, charcoal: 16, soil: 48, sand: 14, moss: 22 };
+            state.substrates.forEach(s => s.height = defaults[s.id] || 20);
+            SoundFX.playPop(400);
+            renderSubstrateSliders();
+            renderSubstrates();
+        }
+
+        function addItemToTerrarium(category, typeId, customX = null, customY = null) {
+            const catalogObj = CATALOG_ITEMS[category].find(c => c.id === typeId);
+            if (!catalogObj) return;
+
+            const surfaceY = getSubstrateSurfaceY();
+            const x = customX !== null ? customX : 240 + Math.random() * 120;
+            // Place slightly rooted into the top layer of moss/soil
+            const y = customY !== null ? customY : surfaceY - 12 + (Math.random() * 16 - 8);
+
+            const newItem = {
+                id: ++nextUniqueId,
+                category,
+                typeId,
+                name: catalogObj.name,
+                x: Math.round(x),
+                y: Math.round(y),
+                scale: catalogObj.defaultScale || 1.0,
+                rotation: 0,
+                flipX: false
+            };
+
+            state.placedItems.push(newItem);
+            state.selectedItemId = newItem.id;
+            SoundFX.playPop(460);
+            renderPlacedItems();
+            updateHumidityDisplay();
+        }
+
+        // HTML5 Drag and Drop from Catalog into SVG
+        function handleDragStart(e, category, typeId) {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ category, typeId }));
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            try {
+                const raw = e.dataTransfer.getData('text/plain');
+                if (!raw) return;
+                const { category, typeId } = JSON.parse(raw);
+                const coords = clientToSvgCoords(e.clientX, e.clientY);
+                addItemToTerrarium(category, typeId, coords.x, coords.y);
+            } catch (err) {
+                // Ignore invalid drop data
+            }
+        }
+
+        function clientToSvgCoords(clientX, clientY) {
+            const svg = document.getElementById('terrariumSvg');
+            const pt = svg.createSVGPoint();
+            pt.x = clientX;
+            pt.y = clientY;
+            const transformed = pt.matrixTransform(svg.getScreenCTM().inverse());
+            return { x: transformed.x, y: transformed.y };
+        }
+
+        function onItemPointerDown(e, itemId) {
+            e.stopPropagation();
+            const item = state.placedItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            state.selectedItemId = itemId;
+            const coords = clientToSvgCoords(e.clientX, e.clientY);
+            state.dragging.active = true;
+            state.dragging.itemId = itemId;
+            state.dragging.offsetX = coords.x - item.x;
+            state.dragging.offsetY = coords.y - item.y;
+
+            SoundFX.playPop(520);
+            renderPlacedItems();
+        }
+
+        function onPointerMove(e) {
+            if (!state.dragging.active || !state.dragging.itemId) return;
+            const item = state.placedItems.find(i => i.id === state.dragging.itemId);
+            if (!item) return;
+
+            const coords = clientToSvgCoords(e.clientX, e.clientY);
+            item.x = Math.max(135, Math.min(465, coords.x - state.dragging.offsetX));
+            item.y = Math.max(125, Math.min(590, coords.y - state.dragging.offsetY));
+
+            // Update DOM directly for 60fps responsiveness
+            const el = document.getElementById(`item-${item.id}`);
+            if (el) {
+                const scaleX = item.flipX ? -item.scale : item.scale;
+                el.setAttribute('transform', `translate(${item.x}, ${item.y}) rotate(${item.rotation}) scale(${scaleX}, ${item.scale})`);
+            }
+            updateSelectionBoxPosition(item);
+        }
+
+        function onPointerUp() {
+            if (state.dragging.active) {
+                state.dragging.active = false;
+                state.dragging.itemId = null;
+            }
+        }
+
+        function handleCanvasBackgroundClick(e) {
+            if (e.target.id === 'terrariumSvg' || e.target.id === 'vesselBackGlass' || e.target.id === 'innerMoodGlow') {
+                state.selectedItemId = null;
+                renderPlacedItems();
+            }
+        }
+
+        function updateSelectionInspector() {
+            const inspector = document.getElementById('itemInspector');
+            const selectionBox = document.getElementById('selectionBoxLayer');
+            const item = state.placedItems.find(i => i.id === state.selectedItemId);
+
+            if (!item) {
+                inspector.classList.add('hidden');
+                selectionBox.classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('selectedItemLabel').textContent = item.name;
+            inspector.classList.remove('hidden');
+            selectionBox.classList.remove('hidden');
+            updateSelectionBoxPosition(item);
+        }
+
+        function updateSelectionBoxPosition(item) {
+            const rect = document.getElementById('selectionRect');
+            const size = 76 * item.scale;
+            rect.setAttribute('x', item.x - size / 2);
+            rect.setAttribute('y', item.y - size / 2);
+            rect.setAttribute('width', size);
+            rect.setAttribute('height', size);
+        }
+
+        function transformSelectedItem(action) {
+            const idx = state.placedItems.findIndex(i => i.id === state.selectedItemId);
+            if (idx === -1) return;
+            const item = state.placedItems[idx];
+
+            switch (action) {
+                case 'scaleUp':
+                    item.scale = Math.min(2.2, +(item.scale + 0.15).toFixed(2));
+                    SoundFX.playPop(560);
+                    break;
+                case 'scaleDown':
+                    item.scale = Math.max(0.45, +(item.scale - 0.15).toFixed(2));
+                    SoundFX.playPop(380);
+                    break;
+                case 'rotateLeft':
+                    item.rotation = (item.rotation - 15) % 360;
+                    SoundFX.playPop(440);
+                    break;
+                case 'rotateRight':
+                    item.rotation = (item.rotation + 15) % 360;
+                    SoundFX.playPop(440);
+                    break;
+                case 'flip':
+                    item.flipX = !item.flipX;
+                    SoundFX.playPop(480);
+                    break;
+                case 'forward':
+                    if (idx < state.placedItems.length - 1) {
+                        state.placedItems.splice(idx, 1);
+                        state.placedItems.push(item);
+                    }
+                    SoundFX.playPop(500);
+                    break;
+                case 'backward':
+                    if (idx > 0) {
+                        state.placedItems.splice(idx, 1);
+                        state.placedItems.unshift(item);
+                    }
+                    SoundFX.playPop(360);
+                    break;
+                case 'duplicate':
+                    const clone = {
+                        ...item,
+                        id: ++nextUniqueId,
+                        x: Math.min(450, item.x + 28),
+                        y: item.y + 6
+                    };
+                    state.placedItems.push(clone);
+                    state.selectedItemId = clone.id;
+                    SoundFX.playPop(600);
+                    break;
+                case 'delete':
+                    state.placedItems.splice(idx, 1);
+                    state.selectedItemId = null;
+                    SoundFX.playPop(260);
+                    updateHumidityDisplay();
+                    break;
+            }
+            renderPlacedItems();
+        }
+
+        function onKeyDown(e) {
+            if (!state.selectedItemId) return;
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                transformSelectedItem('delete');
+            } else if (e.key === 'Escape') {
+                state.selectedItemId = null;
+                renderPlacedItems();
+            }
+        }
+
+        /********************************************************************
+         * 8. ENVIRONMENT, LIGHTING, MISTING & LIVING CREATURES
+         ********************************************************************/
+        function setLightingMode(mode) {
+            state.lightingMode = mode;
+            SoundFX.playGlassChime();
+
+            const stage = document.getElementById('studioStage');
+            const stars = document.getElementById('nightStarsOverlay');
+            const innerGlow = document.getElementById('innerMoodGlow');
+
+            stage.classList.remove('studio-bg-day', 'studio-bg-twilight', 'studio-bg-night');
+            stage.classList.add(`studio-bg-${mode}`);
+
+            if (mode === 'day') {
+                stars.style.opacity = '0';
+                innerGlow.setAttribute('opacity', '0');
+            } else if (mode === 'twilight') {
+                stars.style.opacity = '0.6';
+                innerGlow.setAttribute('opacity', '0.12');
+                // Automatically turn on fairy lights in Fairy Glow mode
+                state.ambiance.fairyLights = true;
+                document.getElementById('toggleFairyLights').checked = true;
+                renderFairyLights();
+            } else if (mode === 'night') {
+                stars.style.opacity = '1';
+                innerGlow.setAttribute('opacity', '0.08');
+                // Automatically turn on fireflies at Midnight
+                state.ambiance.fireflies = true;
+                document.getElementById('toggleFireflies').checked = true;
+            }
+
+            // Highlight active button
+            ['day', 'twilight', 'night'].forEach(m => {
+                const btn = document.getElementById(`mode-${m}`);
+                if (m === mode) {
+                    btn.className = 'lighting-btn p-2.5 rounded-xl border-2 border-botanical-600 bg-botanical-50 text-botanical-900 text-xs font-bold flex flex-col items-center gap-1 shadow-xs';
+                } else {
+                    btn.className = 'lighting-btn p-2.5 rounded-xl border border-parchment-300 bg-parchment-100 text-botanical-800 text-xs font-bold flex flex-col items-center gap-1';
+                }
+            });
+        }
+
+        function toggleAmbianceFeature(feature, enabled) {
+            state.ambiance[feature] = enabled;
+            SoundFX.playPop(490);
+            if (feature === 'fairyLights') renderFairyLights();
+        }
+
+        function triggerMistSpray() {
+            SoundFX.playMistSpray();
+            state.humidity = Math.min(99, state.humidity + 8);
+            updateHumidityDisplay();
+
+            const dropletsLayer = document.getElementById('mistDropletsLayer');
+            const surfaceY = getSubstrateSurfaceY();
+
+            for (let i = 0; i < 28; i++) {
+                const cx = 155 + Math.random() * 290;
+                const cy = 140 + Math.random() * Math.max(120, surfaceY - 160);
+                const r = 1.8 + Math.random() * 2.8;
+
+                const drop = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                drop.setAttribute('cx', cx);
+                drop.setAttribute('cy', cy);
+                drop.setAttribute('rx', r * 0.75);
+                drop.setAttribute('ry', r * 1.25);
+                drop.setAttribute('fill', 'rgba(224, 242, 254, 0.85)');
+                drop.setAttribute('class', 'mist-droplet');
+                drop.style.animationDelay = `${(Math.random() * 0.4).toFixed(2)}s`;
+
+                dropletsLayer.appendChild(drop);
+                setTimeout(() => {
+                    if (drop.parentNode) drop.parentNode.removeChild(drop);
+                }, 4800);
+            }
+            showHelperToast('Misted terrarium! Condensation droplets boost plant vitality.');
+        }
+
+        function updateHumidityDisplay() {
+            const plantCount = state.placedItems.filter(i => i.category === 'plants').length;
+            const mossLayer = state.substrates.find(s => s.id === 'moss');
+            const mossBonus = mossLayer ? Math.round(mossLayer.height * 0.4) : 0;
+            const lidBonus = state.hasLid ? 15 : 0;
+
+            const targetHumidity = Math.min(98, Math.max(24, 30 + plantCount * 5 + mossBonus + lidBonus));
+            state.humidity = targetHumidity;
+
+            let status = 'Optimal';
+            if (state.humidity < 45) status = 'Arid / Dry';
+            else if (state.humidity > 85) status = 'Tropical';
+
+            document.getElementById('humidityReadout').textContent = `${state.humidity}% ${status}`;
+        }
+
+        function animateEcosystemLoop() {
+            const layer = document.getElementById('creaturesLayer');
+            const surfaceY = getSubstrateSurfaceY();
+            let html = '';
+
+            // 1. Wandering Ladybug along the substrate contour
+            if (state.ambiance.ladybug) {
+                state.creatures.ladybugX += 0.35 * state.creatures.ladybugDir;
+                if (state.creatures.ladybugX > 410) state.creatures.ladybugDir = -1;
+                if (state.creatures.ladybugX < 190) state.creatures.ladybugDir = 1;
+
+                const lx = state.creatures.ladybugX;
+                const ly = surfaceY - 4 + Math.sin(lx * 0.05) * 3;
+                const flip = state.creatures.ladybugDir === 1 ? 1 : -1;
+
+                html += `
+                    <g transform="translate(${lx}, ${ly}) scale(${flip}, 1)">
+                        <ellipse cx="0" cy="0" rx="7" ry="5" fill="#dc2626" stroke="#1f2937" stroke-width="1"/>
+                        <circle cx="6" cy="0" r="3" fill="#1f2937"/>
+                        <circle cx="-2" cy="-2" r="1.2" fill="#1f2937"/>
+                        <circle cx="1" cy="2" r="1.2" fill="#1f2937"/>
+                        <circle cx="-4" cy="1" r="1" fill="#1f2937"/>
+                    </g>
+                `;
+            }
+
+            // 2. Fluttering Blue Morpho Butterfly
+            if (state.ambiance.butterfly) {
+                state.creatures.butterflyAngle += 0.03;
+                const bx = 300 + Math.sin(state.creatures.butterflyAngle) * 85;
+                const by = 240 + Math.cos(state.creatures.butterflyAngle * 1.7) * 42;
+                const wingFlap = 0.45 + Math.abs(Math.sin(state.creatures.butterflyAngle * 6)) * 0.55;
+
+                html += `
+                    <g transform="translate(${bx}, ${by}) rotate(-12)">
+                        <g transform="scale(${wingFlap}, 1)">
+                            <path d="M0,0 C-14,-14 -20,-2 -8,8 C-14,14 -6,20 0,8 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1"/>
+                            <path d="M0,0 C14,-14 20,-2 8,8 C14,14 6,20 0,8 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1"/>
+                        </g>
+                        <line x1="0" y1="-5" x2="0" y2="9" stroke="#1e293b" stroke-width="1.5" stroke-linecap="round"/>
+                    </g>
+                `;
+            }
+
+            // 3. Bioluminescent Drifting Fireflies
+            if (state.ambiance.fireflies) {
+                state.creatures.firefliesList.forEach((f, idx) => {
+                    f.x += f.vx;
+                    f.y += f.vy;
+                    if (f.x < 175 || f.x > 425) f.vx *= -1;
+                    if (f.y < 165 || f.y > surfaceY - 25) f.vy *= -1;
+
+                    const pulse = 3 + Math.sin(Date.now() * 0.005 + idx * 1.5) * 1.8;
+                    html += `
+                        <circle cx="${f.x}" cy="${f.y}" r="${pulse}" fill="#fde047" filter="url(#warmGlow)" opacity="0.9"/>
+                        <circle cx="${f.x}" cy="${f.y}" r="1.5" fill="#ffffff"/>
+                    `;
+                });
+            }
+
+            layer.innerHTML = html;
+            requestAnimationFrame(animateEcosystemLoop);
+        }
+
+        /********************************************************************
+         * 9. CURATED PRESETS & RESET WORKFLOW
+         ********************************************************************/
+        function loadPreset(presetName, silent = false) {
+            if (!silent) SoundFX.playGlassChime();
+            state.selectedItemId = null;
+
+            if (presetName === 'rainforest') {
+                state.vesselId = 'classicJar';
+                state.hasLid = true;
+                setSubstrateValues({ pebbles: 36, charcoal: 18, soil: 52, sand: 0, moss: 28 });
+                setLightingMode('day');
+                state.ambiance = { fairyLights: false, fireflies: false, ladybug: true, butterfly: true };
+                const sy = getSubstrateSurfaceY();
+                state.placedItems = [
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'driftwood', name: 'Twisted Driftwood', x: 315, y: sy - 22, scale: 1.35, rotation: -8, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'fern', name: 'Boston Fern', x: 225, y: sy - 28, scale: 1.3, rotation: -6, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'pilea', name: 'Chinese Money Plant', x: 375, y: sy - 25, scale: 1.15, rotation: 8, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'fittonia', name: 'Pink Fittonia', x: 285, y: sy - 8, scale: 1.05, rotation: 0, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'mossball', name: 'Velvet Moss Mound', x: 205, y: sy + 2, scale: 1.1, rotation: 4, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'stones', name: 'Zen River Stones', x: 390, y: sy - 2, scale: 0.95, rotation: 0, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'frog', name: 'Emerald Tree Frog', x: 345, y: sy - 14, scale: 0.9, rotation: -5, flipX: true }
+                ];
+            } else if (presetName === 'desert') {
+                state.vesselId = 'hangingGlobe';
+                state.hasLid = false;
+                setSubstrateValues({ pebbles: 28, charcoal: 10, soil: 22, sand: 64, moss: 0 });
+                setLightingMode('day');
+                state.ambiance = { fairyLights: false, fireflies: false, ladybug: false, butterfly: false };
+                const sy = getSubstrateSurfaceY();
+                state.placedItems = [
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'quartz', name: 'Rose Quartz Cluster', x: 355, y: sy - 18, scale: 1.25, rotation: 8, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'cactus', name: 'Golden Barrel Cactus', x: 235, y: sy - 18, scale: 1.2, rotation: -4, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'airplant', name: 'Tillandsia Xerographica', x: 375, y: sy - 5, scale: 1.1, rotation: 12, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'echeveria', name: 'Blue Echeveria', x: 295, y: sy + 2, scale: 1.1, rotation: 0, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'stones', name: 'Zen River Stones', x: 205, y: sy + 4, scale: 0.95, rotation: -6, flipX: true }
+                ];
+            } else if (presetName === 'fairy') {
+                state.vesselId = 'wardianCase';
+                state.hasLid = true;
+                setSubstrateValues({ pebbles: 30, charcoal: 16, soil: 46, sand: 12, moss: 32 });
+                setLightingMode('twilight');
+                state.ambiance = { fairyLights: true, fireflies: true, ladybug: true, butterfly: true };
+                const sy = getSubstrateSurfaceY();
+                state.placedItems = [
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'fern', name: 'Boston Fern', x: 215, y: sy - 30, scale: 1.25, rotation: -12, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'cottage', name: 'Fairy Acorn House', x: 325, y: sy - 20, scale: 1.25, rotation: 2, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'amethyst', name: 'Amethyst Spire', x: 255, y: sy - 16, scale: 1.1, rotation: -8, flipX: false },
+                    { id: ++nextUniqueId, category: 'plants', typeId: 'mushrooms', name: 'Toadstool Trio', x: 395, y: sy - 16, scale: 1.1, rotation: 6, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'lantern', name: 'Glowing Stone Lantern', x: 205, y: sy - 10, scale: 1.0, rotation: 0, flipX: false },
+                    { id: ++nextUniqueId, category: 'decor', typeId: 'snail', name: 'Golden Garden Snail', x: 280, y: sy + 4, scale: 0.95, rotation: 0, flipX: false }
+                ];
+            }
+
+            // Sync UI Checkboxes & Sliders
+            document.getElementById('lidToggle').checked = state.hasLid;
+            document.getElementById('toggleFairyLights').checked = state.ambiance.fairyLights;
+            document.getElementById('toggleFireflies').checked = state.ambiance.fireflies;
+            document.getElementById('toggleLadybug').checked = state.ambiance.ladybug;
+            document.getElementById('toggleButterfly').checked = state.ambiance.butterfly;
+
+            renderVesselsCatalog();
+            renderSubstrateSliders();
+            renderVesselGeometry();
+            renderPlacedItems();
+            updateHumidityDisplay();
+        }
+
+        function setSubstrateValues(map) {
+            state.substrates.forEach(s => {
+                if (map[s.id] !== undefined) s.height = map[s.id];
+            });
+        }
+
+        function openClearModal() {
+            document.getElementById('clearModal').classList.remove('hidden');
+        }
+
+        function closeClearModal() {
+            document.getElementById('clearModal').classList.add('hidden');
+        }
+
+        function confirmClearTerrarium() {
+            state.placedItems = [];
+            state.selectedItemId = null;
+            SoundFX.playPop(240);
+            renderPlacedItems();
+            updateHumidityDisplay();
+            closeClearModal();
+            showHelperToast('Terrarium cleared! Pick specimens from the left drawer to start fresh.');
+        }
+
+        /********************************************************************
+         * 10. SNAPSHOT SUMMARY & SVG EXPORT
+         ********************************************************************/
+        function exportSnapshot() {
+            state.selectedItemId = null;
+            renderPlacedItems();
+            SoundFX.playGlassChime();
+
+            const vesselName = VESSELS[state.vesselId].name;
+            const floraCount = state.placedItems.filter(i => i.category === 'plants').length;
+            const decorCount = state.placedItems.filter(i => i.category === 'decor').length;
+            const itemNames = [...new Set(state.placedItems.map(i => i.name))];
+
+            const summaryEl = document.getElementById('snapshotSummaryContent');
+            summaryEl.innerHTML = `
+                <div class="flex justify-between py-1 border-b border-parchment-300">
+                    <span class="font-semibold text-botanical-600">Glass Vessel:</span>
+                    <span class="font-bold text-botanical-900">${vesselName}</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-parchment-300">
+                    <span class="font-semibold text-botanical-600">Micro-Climate Humidity:</span>
+                    <span class="font-bold text-botanical-900">${state.humidity}%</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-parchment-300">
+                    <span class="font-semibold text-botanical-600">Specimens Placed:</span>
+                    <span class="font-bold text-botanical-900">${floraCount} Flora, ${decorCount} Hardscape</span>
+                </div>
+                <div class="pt-1">
+                    <div class="font-semibold text-botanical-600 mb-1">Botanical Inventory:</div>
+                    <div class="flex flex-wrap gap-1">
+                        ${itemNames.length ? itemNames.map(n => `<span class="px-2 py-0.5 rounded-md bg-botanical-100 text-botanical-800 text-[11px] font-semibold">${n}</span>`).join('') : '<span class="italic text-botanical-500">Empty vessel</span>'}
+                    </div>
+                </div>
+            `;
+            document.getElementById('snapshotModal').classList.remove('hidden');
+        }
+
+        function closeSnapshotModal() {
+            document.getElementById('snapshotModal').classList.add('hidden');
+        }
+
+        function downloadSvgFile() {
+            const svgEl = document.getElementById('terrariumSvg');
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svgEl);
+            if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `verdant-terrarium-${state.vesselId}.svg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            closeSnapshotModal();
+        }
+
+        let toastTimer = null;
+        function showHelperToast(msg) {
+            const textEl = document.getElementById('helperToastText');
+            textEl.textContent = msg;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                textEl.textContent = 'Tip: Click any item in the jar to move, resize, rotate, or layer it.';
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
