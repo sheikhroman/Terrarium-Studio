@@ -2,7 +2,7 @@
 
 **Verdant Glass** is a browser-based, tactile digital terrarium builder designed and developed from scratch without external frameworks or asset libraries. It combines custom vector botanical illustrations, procedural canvas/SVG rendering, real-time substrate layering, and synthesized Web Audio soundscapes into a cohesive UI/UX experience.
 
-🔗 **[Live Demo](https://sheikhroman.github.io/Terrarium-Studio/)** *(আপনার রিপোজিটরির নাম অনুযায়ী লিংকটি পরিবর্তন করে নিন)*
+🔗 **[Live Demo](https://sheikhroman.github.io/Terrarium-Studio/)** 
 
 ---
 
